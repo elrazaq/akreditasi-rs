@@ -14,3 +14,12 @@ if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
 
 // Export Express app for Vercel Serverless Function
 export default app;
+
+// Compatibility for Vercel Serverless Function CommonJS runtime
+// @ts-ignore
+if (typeof module !== 'undefined' && module.exports) {
+  // @ts-ignore
+  module.exports = app;
+  // @ts-ignore
+  module.exports.default = app;
+}
