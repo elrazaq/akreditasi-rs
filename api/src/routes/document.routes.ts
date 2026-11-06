@@ -2,7 +2,6 @@ import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
-import sanitizeHtml from 'sanitize-html';
 import { DocumentCategory, DocumentStatus, Role } from '@prisma/client';
 import prisma from '../lib/prisma.js';
 import { authenticateToken, JWT_SECRET } from '../middleware/auth.js';
@@ -16,22 +15,48 @@ export const documentRouter = Router();
 // Semua rute dokumen memerlukan autentikasi
 documentRouter.use(authenticateToken);
 
+// Lazy dynamic import helper untuk sanitize-html guna cegah ERR_REQUIRE_ESM pada serverless Node.js
+let _sanitizeHtml: any = null;
+async function getSanitizeHtml(): Promise<any> {
+  if (!_sanitizeHtml) {
+    try {
+      const dynamicImport = new Function('specifier', 'return import(specifier)');
+      const mod = await dynamicImport('sanitize-html');
+      _sanitizeHtml = mod.default || mod;
+    } catch (e) {
+      console.warn('sanitize-html load fallback:', e);
+      _sanitizeHtml = null;
+    }
+  }
+  return _sanitizeHtml;
+}
+
 // Helper sanitasi HTML draf dokumen resmi
-function sanitizeDocumentHtml(input: string): string {
-  return sanitizeHtml(input, {
-    allowedTags: [
-      'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
-      'b', 'i', 'strong', 'em', 'u', 's', 'strike',
-      'ul', 'ol', 'li', 'span', 'br', 'hr', 'blockquote', 'code', 'pre'
-    ],
-    allowedAttributes: {
-      '*': ['class', 'style'],
-      'th': ['colspan', 'rowspan'],
-      'td': ['colspan', 'rowspan'],
-    },
-    allowedSchemes: ['http', 'https'],
-  });
+async function sanitizeDocumentHtml(input: string): Promise<string> {
+  const sanitizer = await getSanitizeHtml();
+  if (sanitizer) {
+    return sanitizer(input, {
+      allowedTags: [
+        'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+        'b', 'i', 'strong', 'em', 'u', 's', 'strike',
+        'ul', 'ol', 'li', 'span', 'br', 'hr', 'blockquote', 'code', 'pre'
+      ],
+      allowedAttributes: {
+        '*': ['class', 'style'],
+        'th': ['colspan', 'rowspan'],
+        'td': ['colspan', 'rowspan'],
+      },
+      allowedSchemes: ['http', 'https'],
+    });
+  }
+
+  // Robust fallback regex jika sanitize-html gagal dimuat dalam container serverless
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/javascript\s*:[^"']*/gi, '');
 }
 
 // Helper untuk mendapatkan folder penyimpanan berkas lokal
@@ -657,7 +682,7 @@ documentRouter.put('/:id/draft', async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const cleanHtml = sanitizeDocumentHtml(String(contentHtml));
+    const cleanHtml = await sanitizeDocumentHtml(String(contentHtml));
 
     const draft = await prisma.documentDraft.upsert({
       where: { documentId: id },
@@ -723,7 +748,7 @@ documentRouter.post('/:id/publish-draft', async (req: Request, res: Response): P
       return;
     }
 
-    const htmlToPublish = sanitizeDocumentHtml(String(rawHtml));
+    const htmlToPublish = await sanitizeDocumentHtml(String(rawHtml));
 
     const lastVersion = await prisma.documentVersion.findFirst({
       where: { documentId: id },
