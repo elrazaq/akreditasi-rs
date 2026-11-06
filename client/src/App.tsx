@@ -11,6 +11,7 @@ import { DocumentRepository } from './components/documents/DocumentRepository';
 import { VerificationQueue } from './components/verification/VerificationQueue';
 import { AuditTrailView } from './components/audit/AuditTrailView';
 import { UserManagement } from './components/admin/UserManagement';
+import { TopLoadingBar } from './components/layout/TopLoadingBar';
 import { api } from './api/client';
 import { PokjaSummary, PokjaDetail, ElemenPenilaian, NavTab } from './types';
 import { Loader2 } from 'lucide-react';
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
   // Sync route into window.location.hash
   const setRoute = useCallback(
     (tab: NavTab, pokjaId: string | null, epId: string | null) => {
+      api.startLoading();
       setCurrentTab(tab);
       setSelectedPokjaId(pokjaId);
       setSelectedEPId(epId);
@@ -59,6 +61,7 @@ export const App: React.FC = () => {
       if (window.location.hash !== newHash) {
         window.history.pushState(null, '', newHash);
       }
+      setTimeout(() => api.stopLoading(), 250);
     },
     []
   );
@@ -163,11 +166,17 @@ export const App: React.FC = () => {
   }
 
   if (!user) {
-    return <LoginForm />;
+    return (
+      <>
+        <TopLoadingBar />
+        <LoginForm />
+      </>
+    );
   }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+      <TopLoadingBar />
       {/* Redesigned Clean Sidebar */}
       <Sidebar
         currentTab={currentTab}

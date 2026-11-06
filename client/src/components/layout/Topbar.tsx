@@ -68,10 +68,18 @@ export const Topbar: React.FC<TopbarProps> = ({
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isApiLoading, setIsApiLoading] = useState(false);
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Subscribe to global API loading states
+  useEffect(() => {
+    return api.subscribeLoading((isLoading) => {
+      setIsApiLoading(isLoading);
+    });
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -265,6 +273,14 @@ export const Topbar: React.FC<TopbarProps> = ({
 
       {/* Right Controls: User Profile & Actions */}
       <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+        {/* Real-time Loading / Sync Pill */}
+        {isApiLoading && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-200/90 text-teal-700 text-[11px] font-medium shadow-xs animate-pulse">
+            <Loader2 className="w-3.5 h-3.5 text-teal-600 animate-spin flex-shrink-0" />
+            <span className="hidden sm:inline">Memuat...</span>
+          </div>
+        )}
+
         {/* User Identity Pill (Clean, without verbose name text) */}
         <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl bg-slate-50 border border-slate-200/80">
           <div

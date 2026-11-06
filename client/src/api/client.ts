@@ -10,8 +10,40 @@ import {
 
 const API_BASE = '/api';
 
+type LoadingListener = (isLoading: boolean) => void;
+
 class ApiClient {
   private cache = new Map<string, { data: any; timestamp: number }>();
+  private activeRequests = 0;
+  private loadingListeners = new Set<LoadingListener>();
+
+  subscribeLoading(listener: LoadingListener): () => void {
+    this.loadingListeners.add(listener);
+    listener(this.activeRequests > 0);
+    return () => {
+      this.loadingListeners.delete(listener);
+    };
+  }
+
+  private notifyLoading() {
+    const isLoading = this.activeRequests > 0;
+    this.loadingListeners.forEach((fn) => {
+      try {
+        fn(isLoading);
+      } catch {}
+    });
+    window.dispatchEvent(new CustomEvent('app:loading', { detail: { isLoading } }));
+  }
+
+  startLoading() {
+    this.activeRequests++;
+    this.notifyLoading();
+  }
+
+  stopLoading() {
+    this.activeRequests = Math.max(0, this.activeRequests - 1);
+    this.notifyLoading();
+  }
 
   private getToken(): string | null {
     return localStorage.getItem('token');
@@ -45,35 +77,40 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    this.startLoading();
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers,
+      });
 
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.dispatchEvent(new Event('auth:unauthorized'));
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.dispatchEvent(new Event('auth:unauthorized'));
+      }
+
+      let data: any;
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        data = { error: text || `Server HTTP Error ${res.status}` };
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Terjadi kesalahan pada permintaan server.');
+      }
+
+      if (isGet && useCache) {
+        this.cache.set(endpoint, { data, timestamp: Date.now() });
+      }
+
+      return data as T;
+    } finally {
+      this.stopLoading();
     }
-
-    let data: any;
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      data = { error: text || `Server HTTP Error ${res.status}` };
-    }
-
-    if (!res.ok) {
-      throw new Error(data.error || 'Terjadi kesalahan pada permintaan server.');
-    }
-
-    if (isGet && useCache) {
-      this.cache.set(endpoint, { data, timestamp: Date.now() });
-    }
-
-    return data as T;
   }
 
   // Auth
