@@ -356,27 +356,7 @@ documentRouter.post('/:id/upload', uploadPdf.single('file'), async (req: Request
       req.file.originalname
     );
 
-    // Simpan salinan lokal di server jika filesystem writable (aman dari read-only fs pada Vercel/Lambda)
-    const targetDirs = getUploadsDirectories();
-    targetDirs.forEach((dir) => {
-      try {
-        const canonicalDir = path.resolve(dir);
-        if (!fs.existsSync(canonicalDir)) {
-          fs.mkdirSync(canonicalDir, { recursive: true });
-        }
-        const safeBaseName = path.basename(req.file!.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
-        const localFilename = `${id}_v${nextVersion}_${safeBaseName}`;
-        const targetPath = path.resolve(canonicalDir, localFilename);
-        if (targetPath.startsWith(canonicalDir)) {
-          fs.writeFileSync(targetPath, req.file!.buffer);
-        }
-      } catch (err) {
-        // Read-only filesystem pada serverless environment
-        console.warn(`Penyimpanan berkas lokal dilewati (${dir}):`, (err as any)?.message);
-      }
-    });
-
-    // Simpan DocumentVersion
+    // Simpan DocumentVersion (Penyimpanan permanen 100% langsung di Cloudinary & PostgreSQL Neon)
     const version = await prisma.documentVersion.create({
       data: {
         documentId: id,
@@ -458,6 +438,12 @@ documentRouter.get('/version/:versionId/file', async (req: Request, res: Respons
       return;
     }
 
+    // Streaming langsung dari Cloudinary CDN (atau file lokal jika ada)
+    if (version.fileUrl) {
+      res.redirect(version.fileUrl);
+      return;
+    }
+
     const localFile = findLocalDocumentFile(version.documentId, version.versionNumber);
     const isVideo = version.fileType === 'video';
 
@@ -476,22 +462,6 @@ documentRouter.get('/version/:versionId/file', async (req: Request, res: Respons
       );
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.sendFile(localFile.fullPath);
-      return;
-    }
-
-    // Jika belum tersimpan di lokal (misal file lama dari Cloudinary)
-    if (version.fileUrl) {
-      if (isVideo) {
-        res.redirect(version.fileUrl);
-        return;
-      }
-      if (version.cloudinaryPublicId) {
-        const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'surgflvc';
-        const pngUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${version.cloudinaryPublicId}.png`;
-        res.redirect(pngUrl);
-        return;
-      }
-      res.redirect(version.fileUrl);
       return;
     }
 
@@ -520,27 +490,15 @@ documentRouter.get('/version/:versionId/download', async (req: Request, res: Res
       return;
     }
 
-    const localFile = findLocalDocumentFile(version.documentId, version.versionNumber);
-    const isVideo = version.fileType === 'video';
-
-    if (localFile) {
-      res.download(localFile.fullPath, `${version.document.judul}${localFile.ext}`);
+    // Download langsung dari Cloudinary CDN (atau file lokal jika ada)
+    if (version.fileUrl) {
+      res.redirect(version.fileUrl);
       return;
     }
 
-    // Jika belum tersimpan di lokal (misal file lama)
-    if (version.fileUrl) {
-      if (isVideo) {
-        res.redirect(version.fileUrl);
-        return;
-      }
-      if (version.cloudinaryPublicId) {
-        const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'surgflvc';
-        const pngUrl = `https://res.cloudinary.com/${cloudName}/image/upload/${version.cloudinaryPublicId}.png`;
-        res.redirect(pngUrl);
-        return;
-      }
-      res.redirect(version.fileUrl);
+    const localFile = findLocalDocumentFile(version.documentId, version.versionNumber);
+    if (localFile) {
+      res.download(localFile.fullPath, `${version.document.judul}${localFile.ext}`);
       return;
     }
 
@@ -760,27 +718,6 @@ documentRouter.post('/:id/publish-draft', async (req: Request, res: Response): P
     });
     const nextVersion = (lastVersion?.versionNumber || 0) + 1;
 
-    let canonicalUploadsDir: string;
-    try {
-      const preferredDir = path.join(process.cwd(), 'uploads', 'documents');
-      if (!fs.existsSync(preferredDir)) {
-        fs.mkdirSync(preferredDir, { recursive: true });
-      }
-      canonicalUploadsDir = path.resolve(preferredDir);
-    } catch {
-      const fallbackDir = path.join(os.tmpdir(), 'uploads', 'documents');
-      if (!fs.existsSync(fallbackDir)) {
-        fs.mkdirSync(fallbackDir, { recursive: true });
-      }
-      canonicalUploadsDir = path.resolve(fallbackDir);
-    }
-
-    const filename = `${id}_v${nextVersion}_dokumen_resmi.html`;
-    const fullPath = path.resolve(canonicalUploadsDir, filename);
-    if (!fullPath.startsWith(canonicalUploadsDir)) {
-      throw new Error('Akses path berkas tidak sah.');
-    }
-
     const styledHtml = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -811,13 +748,20 @@ documentRouter.post('/:id/publish-draft', async (req: Request, res: Response): P
 </body>
 </html>`;
 
-    fs.writeFileSync(fullPath, styledHtml, 'utf-8');
+    // Unggah dokumen HTML resmi langsung ke Cloudinary
+    const htmlBuffer = Buffer.from(styledHtml, 'utf-8');
+    const uploadResult = await uploadPdfBuffer(
+      htmlBuffer,
+      check.pokjaKode.toLowerCase(),
+      `${id}_v${nextVersion}_dokumen_resmi.html`
+    );
 
     const newVersion = await prisma.documentVersion.create({
       data: {
         documentId: id,
         versionNumber: nextVersion,
-        fileUrl: `/api/documents/version/${id}/file`,
+        fileUrl: uploadResult.secure_url,
+        cloudinaryPublicId: uploadResult.public_id,
         fileType: 'html',
         fileSize: Buffer.byteLength(styledHtml),
         catatan: catatan || 'Diterbitkan melalui Editor Dokumen In-App (Word Mode)',
