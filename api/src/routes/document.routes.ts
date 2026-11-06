@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import jwt from 'jsonwebtoken';
 import { DocumentCategory, DocumentStatus, Role } from '@prisma/client';
 import prisma from '../lib/prisma.js';
@@ -61,10 +62,16 @@ async function sanitizeDocumentHtml(input: string): Promise<string> {
 
 // Helper untuk mendapatkan folder penyimpanan berkas lokal
 function getUploadsDirectories(): string[] {
-  return [
+  const dirs = [
     path.join(process.cwd(), 'uploads', 'documents'),
     path.join(process.cwd(), 'api', 'uploads', 'documents'),
   ];
+  try {
+    dirs.push(path.join(os.tmpdir(), 'uploads', 'documents'));
+  } catch {
+    // ignore
+  }
+  return dirs;
 }
 
 function findLocalDocumentFile(documentId: string, versionNumber: number): { fullPath: string; ext: string } | null {
@@ -349,26 +356,23 @@ documentRouter.post('/:id/upload', uploadPdf.single('file'), async (req: Request
       req.file.originalname
     );
 
-    // Simpan salinan lokal di server dengan validasi kanonikal path
+    // Simpan salinan lokal di server jika filesystem writable (aman dari read-only fs pada Vercel/Lambda)
     const targetDirs = getUploadsDirectories();
-    targetDirs.forEach((dir) => {
-      const canonicalDir = path.resolve(dir);
-      if (!fs.existsSync(canonicalDir)) {
-        fs.mkdirSync(canonicalDir, { recursive: true });
-      }
-    });
-
-    const safeBaseName = path.basename(req.file.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
-    const localFilename = `${id}_v${nextVersion}_${safeBaseName}`;
     targetDirs.forEach((dir) => {
       try {
         const canonicalDir = path.resolve(dir);
+        if (!fs.existsSync(canonicalDir)) {
+          fs.mkdirSync(canonicalDir, { recursive: true });
+        }
+        const safeBaseName = path.basename(req.file!.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
+        const localFilename = `${id}_v${nextVersion}_${safeBaseName}`;
         const targetPath = path.resolve(canonicalDir, localFilename);
         if (targetPath.startsWith(canonicalDir)) {
           fs.writeFileSync(targetPath, req.file!.buffer);
         }
       } catch (err) {
-        console.error(`Gagal menulis file ke ${dir}:`, err);
+        // Read-only filesystem pada serverless environment
+        console.warn(`Penyimpanan berkas lokal dilewati (${dir}):`, (err as any)?.message);
       }
     });
 
@@ -756,10 +760,19 @@ documentRouter.post('/:id/publish-draft', async (req: Request, res: Response): P
     });
     const nextVersion = (lastVersion?.versionNumber || 0) + 1;
 
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'documents');
-    const canonicalUploadsDir = path.resolve(uploadsDir);
-    if (!fs.existsSync(canonicalUploadsDir)) {
-      fs.mkdirSync(canonicalUploadsDir, { recursive: true });
+    let canonicalUploadsDir: string;
+    try {
+      const preferredDir = path.join(process.cwd(), 'uploads', 'documents');
+      if (!fs.existsSync(preferredDir)) {
+        fs.mkdirSync(preferredDir, { recursive: true });
+      }
+      canonicalUploadsDir = path.resolve(preferredDir);
+    } catch {
+      const fallbackDir = path.join(os.tmpdir(), 'uploads', 'documents');
+      if (!fs.existsSync(fallbackDir)) {
+        fs.mkdirSync(fallbackDir, { recursive: true });
+      }
+      canonicalUploadsDir = path.resolve(fallbackDir);
     }
 
     const filename = `${id}_v${nextVersion}_dokumen_resmi.html`;
