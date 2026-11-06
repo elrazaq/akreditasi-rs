@@ -56,7 +56,15 @@ class ApiClient {
       window.dispatchEvent(new Event('auth:unauthorized'));
     }
 
-    const data = await res.json();
+    let data: any;
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      data = await res.json();
+    } else {
+      const text = await res.text();
+      data = { error: text || `Server HTTP Error ${res.status}` };
+    }
+
     if (!res.ok) {
       throw new Error(data.error || 'Terjadi kesalahan pada permintaan server.');
     }

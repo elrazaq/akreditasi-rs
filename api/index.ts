@@ -5,8 +5,8 @@ dotenv.config();
 
 const PORT = process.env.PORT || 4000;
 
-// If running directly in local dev environment
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+// If running directly in local dev environment (not Vercel Serverless)
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server API berjalan di http://localhost:${PORT}`);
   });

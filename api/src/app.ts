@@ -10,10 +10,13 @@ import { userRouter } from './routes/user.routes.js';
 
 export const app = express();
 
+// Trust reverse proxy (Vercel, AWS, Nginx)
+app.set('trust proxy', 1);
+
 // Security Headers via Helmet
 app.use(helmet());
 
-// Strict CORS: Explicit origin whitelist
+// Strict CORS: Explicit origin whitelist + Vercel deployment domains
 const allowedOrigins = [
   process.env.CLIENT_ORIGIN,
   'http://localhost:3000',
@@ -23,10 +26,15 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      Boolean(process.env.VERCEL)
+    ) {
       callback(null, true);
     } else {
-      callback(new Error('Akses ditolak oleh kebijakan CORS.'));
+      callback(null, false);
     }
   },
   credentials: true,
@@ -41,6 +49,7 @@ const globalApiLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   message: { error: 'Terlalu banyak permintaan ke API. Harap tunggu sejenak.' },
 });
 
@@ -50,6 +59,7 @@ const authLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   message: { error: 'Terlalu banyak percobaan autentikasi dari IP ini. Silakan coba lagi setelah 15 menit.' },
 });
 
