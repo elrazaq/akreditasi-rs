@@ -1,0 +1,100 @@
+import express, { Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { authRouter } from './routes/auth.routes.js';
+import { pokjaRouter } from './routes/pokja.routes.js';
+import { documentRouter } from './routes/document.routes.js';
+import { auditRouter } from './routes/audit.routes.js';
+import { userRouter } from './routes/user.routes.js';
+
+export const app = express();
+
+// Security Headers via Helmet
+app.use(helmet());
+
+// Strict CORS: Explicit origin whitelist
+const allowedOrigins = [
+  process.env.CLIENT_ORIGIN,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Akses ditolak oleh kebijakan CORS.'));
+    }
+  },
+  credentials: true,
+}));
+
+// Request body size limit
+app.use(express.json({ limit: '2mb' }));
+
+// Rate Limiter: Global API (300 req / 15 menit)
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak permintaan ke API. Harap tunggu sejenak.' },
+});
+
+// Rate Limiter: Auth endpoints (30 attempts / 15 menit untuk cegah brute force)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak percobaan autentikasi dari IP ini. Silakan coba lagi setelah 15 menit.' },
+});
+
+app.use('/api', globalApiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
+
+// Health check endpoint
+app.get('/api/health', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'akreditasi-rs-api',
+    standards: 'STARKES 2027',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Root API info
+app.get('/api', (_req: Request, res: Response) => {
+  res.status(200).json({
+    name: 'Sistem Dokumentasi Akreditasi Rumah Sakit (STARKES 2027) API',
+    version: '1.0.0',
+    status: 'running',
+  });
+});
+
+// Register feature routes
+app.use('/api/auth', authRouter);
+app.use('/api/pokja', pokjaRouter);
+app.use('/api/documents', documentRouter);
+app.use('/api/audit-logs', auditRouter);
+app.use('/api/users', userRouter);
+
+// 404 handler for API routes
+app.use('/api/*', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Endpoint API tidak ditemukan.' });
+});
+
+// Global error handler
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('API Error:', err);
+  res.status(500).json({
+    error: 'Terjadi kesalahan pada server.',
+    message: process.env.NODE_ENV === 'production' ? undefined : err.message,
+  });
+});
+
+export default app;

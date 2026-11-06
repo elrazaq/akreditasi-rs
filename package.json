@@ -1,0 +1,26 @@
+{
+  "name": "akreditasi-rs-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "api",
+    "client"
+  ],
+  "scripts": {
+    "dev:client": "npm run dev --workspace=client",
+    "dev:api": "npm run dev --workspace=api",
+    "build:client": "npm run build --workspace=client",
+    "build:api": "npm run build --workspace=api",
+    "build": "npm run build:api && npm run build:client",
+    "test": "npm run test --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace=api",
+    "db:push": "npm run db:push --workspace=api",
+    "db:seed": "npm run db:seed --workspace=api"
+  },
+  "devDependencies": {
+    "prisma": "6.4.1"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.4.1"
+  }
+}

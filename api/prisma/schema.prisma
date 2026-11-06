@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  POKJA
+  VERIFIKATOR
+}
+
+enum DocumentStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REVISED
+}
+
+enum DocumentCategory {
+  REGULASI
+  BUKTI
+  OBSERVASI
+  WAWANCARA
+  SIMULASI
+}
+
+enum PokjaGroup {
+  TATA_KELOLA
+  PELAYANAN
+  MANAJEMEN
+  PROGNAS
+}
+
+model User {
+  id              String   @id @default(cuid())
+  nama            String
+  email           String   @unique
+  passwordHash    String
+  role            Role     @default(POKJA)
+  assignedPokjaId String?
+  assignedPokja   Pokja?   @relation(fields: [assignedPokjaId], references: [id], onDelete: SetNull)
+
+  createdDocuments   Document[]           @relation("DocumentCreator")
+  uploadedVersions   DocumentVersion[]    @relation("VersionUploader")
+  createdAnnotations DocumentAnnotation[] @relation("AnnotationCreator")
+  savedDrafts        DocumentDraft[]      @relation("DraftEditor")
+  auditLogs          AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([role])
+  @@index([assignedPokjaId])
+}
+
+model Pokja {
+  id        String     @id @default(cuid())
+  kode      String     @unique
+  nama      String
+  kelompok  PokjaGroup
+  urutan    Int
+
+  standars Standar[]
+  users    User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kode])
+  @@index([kelompok])
+}
+
+model Standar {
+  id       String @id @default(cuid())
+  pokjaId  String
+  pokja    Pokja  @relation(fields: [pokjaId], references: [id], onDelete: Cascade)
+  kode     String
+  judul    String
+  urutan   Int
+
+  elemenPenilaian ElemenPenilaian[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pokjaId, kode])
+  @@index([pokjaId])
+}
+
+model ElemenPenilaian {
+  id                  String             @id @default(cuid())
+  standarId           String
+  standar             Standar            @relation(fields: [standarId], references: [id], onDelete: Cascade)
+  kode                String
+  nomorEp             String?
+  deskripsi           String             @db.Text
+  jenisDokumen        DocumentCategory[]
+  urutan              Int                @default(1)
+  kelengkapanBukti    String?            @db.Text
+  skoring             String?
+  halamanPdf          String?
+  kodeR               Boolean            @default(false)
+  kodeD               Boolean            @default(false)
+  kodeO               Boolean            @default(false)
+  kodeW               Boolean            @default(false)
+  kodeS               Boolean            @default(false)
+  statusKesiapan      String             @default("Belum dinilai")
+  picUnit             String?
+  targetSelesai       String?
+  catatanTindakLanjut String?            @db.Text
+
+  documents Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([standarId, kode])
+  @@index([standarId])
+}
+
+model Document {
+  id        String           @id @default(cuid())
+  epId      String
+  elemenPenilaian ElemenPenilaian @relation(fields: [epId], references: [id], onDelete: Cascade)
+  judul     String
+  kategori  DocumentCategory
+  status    DocumentStatus   @default(DRAFT)
+  catatanReview String?      @db.Text
+
+  createdById String
+  createdBy   User   @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  versions DocumentVersion[]
+  draft    DocumentDraft?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([epId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model DocumentVersion {
+  id                 String   @id @default(cuid())
+  documentId         String
+  document           Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber      Int      @default(1)
+  fileUrl            String
+  cloudinaryPublicId String?
+  fileType           String?  @default("pdf")
+  fileSize           Int?
+  catatan            String?
+
+  uploadedById String
+  uploadedBy   User   @relation("VersionUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  annotations DocumentAnnotation[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+  @@index([uploadedById])
+}
+
+model DocumentAnnotation {
+  id                String          @id @default(cuid())
+  documentVersionId String
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  pageNumber        Int
+  tipe              String
+  koordinatJson     String          @db.Text
+  catatanRevisi     String          @db.Text
+
+  createdById String
+  createdBy   User   @relation("AnnotationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([documentVersionId])
+  @@index([createdById])
+}
+
+model DocumentDraft {
+  id          String   @id @default(cuid())
+  documentId  String   @unique
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  contentHtml String   @db.Text
+  contentJson String?  @db.Text
+
+  lastSavedById String
+  lastSavedBy   User   @relation("DraftEditor", fields: [lastSavedById], references: [id], onDelete: Restrict)
+
+  updatedAt DateTime @updatedAt
+
+  @@index([documentId])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  aksi         String
+  targetType   String
+  targetId     String?
+  metadataJson String?  @db.Text
+  ipAddress    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([aksi])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
