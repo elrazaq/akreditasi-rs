@@ -12,6 +12,7 @@ import {
   LogOut,
   Users,
   X,
+  Loader2,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -19,6 +20,7 @@ interface SidebarProps {
   onSelectTab: (tab: NavTab) => void;
   pokjas: PokjaSummary[];
   selectedPokjaId: string | null;
+  loadingPokjaId?: string | null;
   onSelectPokja: (id: string | null) => void;
   pendingReviewCount: number;
   isMobileOpen?: boolean;
@@ -37,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   pokjas,
   selectedPokjaId,
+  loadingPokjaId,
   onSelectPokja,
   pendingReviewCount,
   isMobileOpen = false,
@@ -280,23 +283,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               </div>
 
                               <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                                {isAssigned && (
-                                  <span
-                                    className="w-1.5 h-1.5 rounded-full bg-teal-400"
-                                    title="Pokja Anda"
-                                  />
+                                {loadingPokjaId === pokja.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 text-teal-300 animate-spin" />
+                                ) : (
+                                  <>
+                                    {isAssigned && (
+                                      <span
+                                        className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                                        title="Pokja Anda"
+                                      />
+                                    )}
+                                    <span
+                                      className={`text-[10px] font-mono font-semibold ${
+                                        rate >= 80
+                                          ? 'text-teal-400'
+                                          : rate >= 40
+                                          ? 'text-amber-400'
+                                          : 'text-slate-500'
+                                      }`}
+                                    >
+                                      {rate}%
+                                    </span>
+                                  </>
                                 )}
-                                <span
-                                  className={`text-[10px] font-mono font-semibold ${
-                                    rate >= 80
-                                      ? 'text-teal-400'
-                                      : rate >= 40
-                                      ? 'text-amber-400'
-                                      : 'text-slate-500'
-                                  }`}
-                                >
-                                  {rate}%
-                                </span>
                               </div>
                             </button>
                           );

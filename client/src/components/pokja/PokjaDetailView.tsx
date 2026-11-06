@@ -12,18 +12,21 @@ import {
   UserCheck,
   FileCheck,
   Layers,
+  Loader2,
 } from 'lucide-react';
 
 interface PokjaDetailViewProps {
   pokja: PokjaDetail;
   onSelectEP: (epId: string) => void;
   selectedEPId?: string | null;
+  loadingEPId?: string | null;
 }
 
 export const PokjaDetailView: React.FC<PokjaDetailViewProps> = ({
   pokja,
   onSelectEP,
   selectedEPId,
+  loadingEPId,
 }) => {
   const [filterScore, setFilterScore] = useState<string>('ALL');
 
@@ -446,13 +449,20 @@ export const PokjaDetailView: React.FC<PokjaDetailViewProps> = ({
                           </div>
 
                           {/* Action Button - Large Rounded */}
-                          <button
-                            type="button"
-                            className="p-2.5 text-slate-400 hover:text-white hover:bg-teal-600 rounded-xl transition cursor-pointer shadow-xs hover:shadow-glow-teal"
-                            title="Buka Ruang Kerja EP"
-                          >
-                            <ArrowRight className="w-4 h-4" />
-                          </button>
+                          {loadingEPId === ep.id ? (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-50 text-teal-700 font-medium text-xs border border-teal-200 animate-pulse">
+                              <Loader2 className="w-4 h-4 text-teal-600 animate-spin" />
+                              <span>Membuka...</span>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="p-2.5 text-slate-400 hover:text-white hover:bg-teal-600 rounded-xl transition cursor-pointer shadow-xs hover:shadow-glow-teal"
+                              title="Buka Ruang Kerja EP"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );

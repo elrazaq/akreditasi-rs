@@ -38,8 +38,10 @@ export const App: React.FC = () => {
   const [loadingPokjas, setLoadingPokjas] = useState(false);
   const [selectedPokjaId, setSelectedPokjaId] = useState<string | null>(() => parseHashRoute().pokja);
   const [pokjaDetail, setPokjaDetail] = useState<PokjaDetail | null>(null);
+  const [loadingPokjaDetail, setLoadingPokjaDetail] = useState(false);
   const [selectedEPId, setSelectedEPId] = useState<string | null>(() => parseHashRoute().ep);
   const [epDetail, setEPDetail] = useState<ElemenPenilaian | null>(null);
+  const [loadingEPDetail, setLoadingEPDetail] = useState(false);
   const [refreshIndex, setRefreshIndex] = useState(0);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -109,16 +111,25 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!selectedPokjaId) {
       setPokjaDetail(null);
+      setLoadingPokjaDetail(false);
       return;
     }
 
     let mounted = true;
+    setLoadingPokjaDetail(true);
+
     api
       .getPokjaDetail(selectedPokjaId)
       .then((res) => {
-        if (mounted) setPokjaDetail(res.pokja);
+        if (mounted) {
+          setPokjaDetail(res.pokja);
+          setLoadingPokjaDetail(false);
+        }
       })
-      .catch((err) => console.error('Gagal memuat detail Pokja:', err));
+      .catch((err) => {
+        console.error('Gagal memuat detail Pokja:', err);
+        if (mounted) setLoadingPokjaDetail(false);
+      });
 
     return () => {
       mounted = false;
@@ -129,16 +140,25 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!selectedEPId) {
       setEPDetail(null);
+      setLoadingEPDetail(false);
       return;
     }
 
     let mounted = true;
+    setLoadingEPDetail(true);
+
     api
       .getEPDetail(selectedEPId)
       .then((res) => {
-        if (mounted) setEPDetail(res.ep);
+        if (mounted) {
+          setEPDetail(res.ep);
+          setLoadingEPDetail(false);
+        }
       })
-      .catch((err) => console.error('Gagal memuat detail EP:', err));
+      .catch((err) => {
+        console.error('Gagal memuat detail EP:', err);
+        if (mounted) setLoadingEPDetail(false);
+      });
 
     return () => {
       mounted = false;
@@ -183,6 +203,7 @@ export const App: React.FC = () => {
         onSelectTab={(tab) => setRoute(tab, null, null)}
         pokjas={pokjas}
         selectedPokjaId={selectedPokjaId}
+        loadingPokjaId={loadingPokjaDetail ? selectedPokjaId : null}
         onSelectPokja={(id) => {
           if (id) {
             setRoute('pokja', id, null);
@@ -219,22 +240,40 @@ export const App: React.FC = () => {
 
             {/* Dynamic View Switcher */}
             {loadingPokjas && pokjas.length === 0 ? (
-              <div className="p-12 text-center">
-                <Loader2 className="w-8 h-8 text-hospital-600 animate-spin mx-auto mb-2" />
-                <p className="text-xs text-slate-500">Sinkronisasi data instrumen STARKES 2027...</p>
+              <div className="p-16 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs">
+                <Loader2 className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-3" />
+                <h3 className="text-sm font-semibold text-slate-800">Sinkronisasi Instrumen STARKES 2027...</h3>
+                <p className="text-xs text-slate-400 mt-1">Mengambil 16 Pokja Akreditasi RSUD Bintan</p>
               </div>
-            ) : selectedEPId && epDetail ? (
-              <EPWorkspace
-                ep={epDetail}
-                onBack={() => setRoute('pokja', selectedPokjaId, null)}
-                onRefresh={triggerRefresh}
-              />
-            ) : currentTab === 'pokja' && selectedPokjaId && pokjaDetail ? (
-              <PokjaDetailView
-                pokja={pokjaDetail}
-                onSelectEP={(epId) => setRoute('pokja', selectedPokjaId, epId)}
-                selectedEPId={selectedEPId}
-              />
+            ) : selectedEPId ? (
+              loadingEPDetail || !epDetail || epDetail.id !== selectedEPId ? (
+                <div className="p-16 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs animate-pulse">
+                  <Loader2 className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-3" />
+                  <h3 className="text-sm font-semibold text-slate-800">Memuat Ruang Kerja Elemen Penilaian...</h3>
+                  <p className="text-xs text-slate-400 mt-1">Mengambil berkas regulasi dan bukti akreditasi</p>
+                </div>
+              ) : (
+                <EPWorkspace
+                  ep={epDetail}
+                  onBack={() => setRoute('pokja', selectedPokjaId, null)}
+                  onRefresh={triggerRefresh}
+                />
+              )
+            ) : currentTab === 'pokja' && selectedPokjaId ? (
+              loadingPokjaDetail || !pokjaDetail || pokjaDetail.id !== selectedPokjaId ? (
+                <div className="p-16 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs animate-pulse">
+                  <Loader2 className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-3" />
+                  <h3 className="text-sm font-semibold text-slate-800">Memuat Instrumen Pokja...</h3>
+                  <p className="text-xs text-slate-400 mt-1">Mengambil seluruh standar dan elemen penilaian</p>
+                </div>
+              ) : (
+                <PokjaDetailView
+                  pokja={pokjaDetail}
+                  onSelectEP={(epId) => setRoute('pokja', selectedPokjaId, epId)}
+                  selectedEPId={selectedEPId}
+                  loadingEPId={loadingEPDetail ? selectedEPId : null}
+                />
+              )
             ) : currentTab === 'documents' ? (
               <DocumentRepository
                 pokjas={pokjas}

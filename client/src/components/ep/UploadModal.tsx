@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, FileText, Video, AlertCircle } from 'lucide-react';
+import { Upload, X, FileText, Video, AlertCircle, Loader2 } from 'lucide-react';
 import { api } from '../../api/client';
 
 interface UploadModalProps {
@@ -178,7 +178,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               disabled={isUploading || !file}
               className="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-glow-teal transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Upload className="w-4 h-4" />
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
               <span>{isUploading ? 'Mengunggah ke Cloud...' : 'Unggah Berkas'}</span>
             </button>
           </div>

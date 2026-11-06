@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, AlertCircle, FileText } from 'lucide-react';
+import { X, Plus, AlertCircle, FileText, Loader2 } from 'lucide-react';
 import { DocumentCategory } from '../../types';
 import { api } from '../../api/client';
 
@@ -185,7 +185,11 @@ export const CreateDocModal: React.FC<CreateDocModalProps> = ({
               disabled={isSubmitting}
               className="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-glow-teal transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" />
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
               <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Dokumen'}</span>
             </button>
           </div>
