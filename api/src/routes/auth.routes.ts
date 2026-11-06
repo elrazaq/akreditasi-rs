@@ -75,7 +75,7 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
     });
   } catch (err: any) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Terjadi kesalahan internal saat autentikasi.' });
+    res.status(500).json({ error: err.message || 'Terjadi kesalahan internal saat autentikasi.' });
   }
 });
 

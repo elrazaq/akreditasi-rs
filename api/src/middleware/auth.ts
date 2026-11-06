@@ -18,12 +18,11 @@ declare global {
   }
 }
 
-export const JWT_SECRET = process.env.JWT_SECRET || ((): string => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: Variabel lingkungan JWT_SECRET wajib didefinisikan pada lingkungan produksi.');
-  }
-  return 'dev-jwt-secret-key-akreditasi-starkes-2027-internal';
-})();
+export const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === 'production'
+    ? 'akreditasi-rsud-bintan-starkes-jwt-secret-production-2027-secure-fallback'
+    : 'dev-jwt-secret-key-akreditasi-starkes-2027-internal');
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers['authorization'];

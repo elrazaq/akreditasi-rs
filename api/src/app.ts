@@ -65,7 +65,9 @@ const authLimiter = rateLimit({
 
 app.use('/api', globalApiLimiter);
 app.use('/api/auth/login', authLimiter);
+app.use('/auth/login', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
+app.use('/auth/change-password', authLimiter);
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -76,9 +78,17 @@ app.get('/api/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+app.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'akreditasi-rs-api',
+    standards: 'STARKES 2027',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Root API info
-app.get('/api', (_req: Request, res: Response) => {
+app.get(['/api', '/'], (_req: Request, res: Response) => {
   res.status(200).json({
     name: 'Sistem Dokumentasi Akreditasi Rumah Sakit (STARKES 2027) API',
     version: '1.0.0',
@@ -86,15 +96,24 @@ app.get('/api', (_req: Request, res: Response) => {
   });
 });
 
-// Register feature routes
+// Register feature routes (dukung path dengan /api/ maupun tanpa prefix)
 app.use('/api/auth', authRouter);
+app.use('/auth', authRouter);
+
 app.use('/api/pokja', pokjaRouter);
+app.use('/pokja', pokjaRouter);
+
 app.use('/api/documents', documentRouter);
+app.use('/documents', documentRouter);
+
 app.use('/api/audit-logs', auditRouter);
+app.use('/audit-logs', auditRouter);
+
 app.use('/api/users', userRouter);
+app.use('/users', userRouter);
 
 // 404 handler for API routes
-app.use('/api/*', (_req: Request, res: Response) => {
+app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Endpoint API tidak ditemukan.' });
 });
 
@@ -103,7 +122,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('API Error:', err);
   res.status(500).json({
     error: 'Terjadi kesalahan pada server.',
-    message: process.env.NODE_ENV === 'production' ? undefined : err.message,
+    message: err.message,
   });
 });
 
