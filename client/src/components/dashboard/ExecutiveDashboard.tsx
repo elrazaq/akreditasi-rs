@@ -11,6 +11,7 @@ import {
   FileCheck,
   AlertCircle,
 } from 'lucide-react';
+import { PokjaAnalyticsChart } from './PokjaAnalyticsChart';
 
 interface ExecutiveDashboardProps {
   pokjas: PokjaSummary[];
@@ -183,6 +184,12 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Interactive Stacked Bar Analytics Chart */}
+      <PokjaAnalyticsChart
+        pokjas={pokjas}
+        onSelectPokja={onSelectPokja}
+      />
 
       {/* 4 Group Summary Cards */}
       <div>
