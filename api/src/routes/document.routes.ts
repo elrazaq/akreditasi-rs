@@ -207,10 +207,10 @@ documentRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// POST /api/documents - Buat dokumen baru pada EP
-documentRouter.post('/', async (req: Request, res: Response): Promise<void> => {
+// POST /api/documents - Buat dokumen baru pada EP (Bisa langsung menyertakan berkas sekaligus 1 tahap)
+documentRouter.post('/', uploadPdf.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { epId, judul, kategori } = req.body;
+    const { epId, judul, kategori, catatan } = req.body;
 
     if (!epId || !judul || !kategori) {
       res.status(400).json({ error: 'Field epId, judul, dan kategori wajib diisi.' });
@@ -226,6 +226,16 @@ documentRouter.post('/', async (req: Request, res: Response): Promise<void> => {
     if (!check.authorized) {
       res.status(403).json({ error: check.error });
       return;
+    }
+
+    // Validasi Integritas Biner (Magic Bytes) jika ada berkas
+    if (req.file) {
+      if (!validateMagicBytes(req.file.buffer, req.file.mimetype)) {
+        res.status(400).json({
+          error: 'Integritas berkas gagal diverifikasi. Header biner berkas tidak cocok dengan format yang dinyatakan.',
+        });
+        return;
+      }
     }
 
     const document = await prisma.document.create({
@@ -252,9 +262,56 @@ documentRouter.post('/', async (req: Request, res: Response): Promise<void> => {
       ipAddress: req.ip,
     });
 
+    // Jika pengguna langsung memilih berkas saat buat dokumen (1 Tahap Selesai)
+    let version = null;
+    if (req.file) {
+      const isVideo = /\.(mp4|webm|mov|avi)$/i.test(req.file.originalname);
+      const uploadResult = await uploadPdfBuffer(
+        req.file.buffer,
+        check.pokjaKode.toLowerCase(),
+        req.file.originalname
+      );
+
+      version = await prisma.documentVersion.create({
+        data: {
+          documentId: document.id,
+          versionNumber: 1,
+          fileUrl: uploadResult.secure_url,
+          cloudinaryPublicId: uploadResult.public_id,
+          fileSize: uploadResult.bytes,
+          fileType: isVideo ? 'video' : 'pdf',
+          catatan: catatan ? String(catatan).trim() : 'Versi awal (upload langsung)',
+          uploadedById: req.user!.id,
+        },
+      });
+
+      await logAudit({
+        userId: req.user!.id,
+        aksi: 'UPLOAD_VERSION',
+        targetType: 'DOCUMENT_VERSION',
+        targetId: version.id,
+        metadata: {
+          documentId: document.id,
+          versionNumber: 1,
+          fileSize: uploadResult.bytes,
+          url: uploadResult.secure_url,
+        },
+        ipAddress: req.ip,
+      });
+    }
+
     invalidatePokjaCache();
 
-    res.status(201).json({ message: 'Dokumen berhasil dibuat.', document });
+    res.status(201).json({
+      message: version
+        ? 'Dokumen dan berkas berhasil dibuat serta diunggah langsung.'
+        : 'Dokumen berhasil dibuat.',
+      document: {
+        ...document,
+        versions: version ? [version] : [],
+      },
+      version,
+    });
   } catch (err: any) {
     console.error('Create document error:', err);
     res.status(500).json({ error: 'Gagal membuat dokumen.' });

@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Upload, X, FileText, Video, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Upload,
+  X,
+  FileText,
+  Video,
+  AlertCircle,
+  Loader2,
+  ShieldAlert,
+} from 'lucide-react';
 import { api } from '../../api/client';
 
 interface UploadModalProps {
@@ -19,6 +27,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [file, setFile] = useState<File | null>(null);
   const [catatan, setCatatan] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,11 +69,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     try {
       setIsUploading(true);
       setError(null);
-      await api.uploadVersion(documentId, file, catatan);
+      setUploadPercent(0);
+
+      await api.uploadVersion(documentId, file, catatan, (percent) => {
+        setUploadPercent(percent);
+      });
+
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Gagal mengunggah berkas.');
-    } finally {
       setIsUploading(false);
     }
   };
@@ -76,7 +89,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200"
       style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (!isUploading && e.target === e.currentTarget) onClose();
       }}
     >
       <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-modal border border-slate-200/90 overflow-hidden relative">
@@ -85,7 +98,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           <div>
             <h3 className="text-sm font-semibold text-slate-900 tracking-tight flex items-center gap-2">
               <Upload className="w-4 h-4 text-teal-600" />
-              <span>Unggah Berkas Bukti Akreditasi</span>
+              <span>Unggah Versi Berkas Bukti Akreditasi</span>
             </h3>
             <p className="text-xs text-slate-500 truncate max-w-sm mt-0.5" title={documentTitle}>
               {documentTitle}
@@ -93,7 +106,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+            disabled={isUploading}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
           >
             <X className="w-4 h-4" />
           </button>
@@ -106,6 +120,34 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           </div>
         )}
 
+        {/* Progress Alert saat Upload berlangsung */}
+        {isUploading && (
+          <div className="mt-4 p-4 bg-amber-50/90 border border-amber-200/90 rounded-2xl space-y-2.5 animate-in fade-in">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-amber-900 flex items-center gap-1.5">
+                <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                <span>Mengunggah Berkas ke Cloudinary:</span>
+              </span>
+              <span className="font-mono font-bold text-amber-800 text-sm">{uploadPercent}%</span>
+            </div>
+
+            {/* Progress Bar Track */}
+            <div className="w-full bg-amber-200/60 rounded-full h-3 overflow-hidden p-0.5">
+              <div
+                className="bg-gradient-to-r from-teal-600 to-hospital-600 h-full rounded-full transition-all duration-200 relative overflow-hidden"
+                style={{ width: `${Math.max(5, uploadPercent)}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 animate-pulse" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] text-amber-800 pt-1">
+              <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <span>Harap <strong>JANGAN merefresh atau menutup halaman</strong> selama proses upload agar berkas tidak korup.</span>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleUpload} className="mt-4 space-y-4">
           {/* File Picker Zone */}
           <div className="border-2 border-dashed border-slate-300 hover:border-teal-500 rounded-2xl p-6 text-center transition-all bg-slate-50/60 hover:bg-teal-50/20 group">
@@ -114,6 +156,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               accept=".pdf,application/pdf,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
               onChange={handleFileChange}
               id="file-upload"
+              disabled={isUploading}
               className="hidden"
             />
             <label htmlFor="file-upload" className="cursor-pointer block">
@@ -160,7 +203,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               onChange={(e) => setCatatan(e.target.value)}
               placeholder="Contoh: Berkas regulasi pembaruan 2024 telah ditandatangani Direktur..."
               rows={3}
-              className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:bg-white transition"
+              disabled={isUploading}
+              className="w-full px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 focus:bg-white transition disabled:opacity-60"
             />
           </div>
 
@@ -169,7 +213,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isUploading}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 rounded-xl transition cursor-pointer"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 rounded-xl transition cursor-pointer disabled:opacity-50"
             >
               Batal
             </button>
@@ -179,11 +223,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               className="px-5 py-2 text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-glow-teal transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
             >
               {isUploading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Mengunggah ({uploadPercent}%)...</span>
+                </>
               ) : (
-                <Upload className="w-4 h-4" />
+                <>
+                  <Upload className="w-4 h-4" />
+                  <span>Unggah Berkas</span>
+                </>
               )}
-              <span>{isUploading ? 'Mengunggah ke Cloud...' : 'Unggah Berkas'}</span>
             </button>
           </div>
         </form>

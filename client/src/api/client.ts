@@ -164,16 +164,85 @@ class ApiClient {
     return this.request(`/pokja/search?q=${encodeURIComponent(q)}`, {}, false);
   }
 
+  uploadWithProgress<T>(
+    endpoint: string,
+    formData: FormData,
+    onProgress?: (percent: number) => void
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const token = this.getToken();
+
+      xhr.open('POST', `${API_BASE}${endpoint}`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+
+      this.startLoading();
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percent = Math.min(99, Math.round((event.loaded / event.total) * 100));
+          onProgress(percent);
+        }
+      };
+
+      xhr.onload = () => {
+        this.stopLoading();
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (onProgress) onProgress(100);
+            resolve(data);
+          } catch {
+            reject(new Error('Gagal memproses respon server.'));
+          }
+        } else {
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            reject(new Error(errData.error || errData.message || `Gagal (${xhr.status})`));
+          } catch {
+            reject(new Error(`Gagal mengunggah berkas (${xhr.status})`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        this.stopLoading();
+        reject(new Error('Koneksi jaringan terputus saat mengunggah berkas.'));
+      };
+
+      xhr.send(formData);
+    });
+  }
+
   // Documents
   async createDocument(
     epId: string,
     judul: string,
-    kategori: DocumentCategory
-  ): Promise<{ message: string; document: DocumentItem }> {
+    kategori: DocumentCategory,
+    file?: File | null,
+    catatan?: string,
+    onProgress?: (percent: number) => void
+  ): Promise<{ message: string; document: DocumentItem; version?: any }> {
     this.clearCache();
+    if (file) {
+      const formData = new FormData();
+      formData.append('epId', epId);
+      formData.append('judul', judul);
+      formData.append('kategori', kategori);
+      formData.append('file', file);
+      if (catatan) formData.append('catatan', catatan);
+      return this.uploadWithProgress<{ message: string; document: DocumentItem; version?: any }>(
+        '/documents',
+        formData,
+        onProgress
+      );
+    }
+
     return this.request<{ message: string; document: DocumentItem }>('/documents', {
       method: 'POST',
-      body: JSON.stringify({ epId, judul, kategori }),
+      body: JSON.stringify({ epId, judul, kategori, catatan }),
     });
   }
 
@@ -210,7 +279,8 @@ class ApiClient {
   async uploadVersion(
     documentId: string,
     file: File,
-    catatan?: string
+    catatan?: string,
+    onProgress?: (percent: number) => void
   ): Promise<{ message: string; version: any }> {
     this.clearCache();
     const formData = new FormData();
@@ -219,10 +289,11 @@ class ApiClient {
       formData.append('catatan', catatan);
     }
 
-    return this.request<{ message: string; version: any }>(`/documents/${documentId}/upload`, {
-      method: 'POST',
-      body: formData,
-    });
+    return this.uploadWithProgress<{ message: string; version: any }>(
+      `/documents/${documentId}/upload`,
+      formData,
+      onProgress
+    );
   }
 
   async updateDocumentStatus(
