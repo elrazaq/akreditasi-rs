@@ -73,16 +73,16 @@ app.use('/auth/change-password', authLimiter);
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
-    service: 'akreditasi-rs-api',
-    standards: 'STARKES 2027',
+    service: 'e-sehati-api',
+    standards: 'STARKES 2024',
     timestamp: new Date().toISOString(),
   });
 });
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'ok',
-    service: 'akreditasi-rs-api',
-    standards: 'STARKES 2027',
+    service: 'e-sehati-api',
+    standards: 'STARKES 2024',
     timestamp: new Date().toISOString(),
   });
 });
@@ -90,7 +90,7 @@ app.get('/health', (_req: Request, res: Response) => {
 // Root API info
 app.get(['/api', '/'], (_req: Request, res: Response) => {
   res.status(200).json({
-    name: 'Sistem Dokumentasi Akreditasi Rumah Sakit (STARKES 2027) API',
+    name: 'E-Sehati - Sistem Informasi Dokumentasi Akreditasi Rumah Sakit (STARKES 2024) API',
     version: '1.0.0',
     status: 'running',
   });

@@ -91,7 +91,7 @@ export const PokjaDetailView: React.FC<PokjaDetailViewProps> = ({
               </span>
               <span className="text-[11px] text-slate-700 font-medium flex items-center gap-1 font-mono">
                 <BookOpen className="w-3.5 h-3.5 text-teal-600" />
-                <span>Kepdirjen Yankes HK.02.02/D/47104/2027</span>
+                <span>Kepdirjen Yankes HK.02.02/D/47104/2024 (STARKES 2024)</span>
               </span>
             </div>
             <h1 className="text-xl font-semibold text-slate-900 tracking-tight">{pokja.nama}</h1>

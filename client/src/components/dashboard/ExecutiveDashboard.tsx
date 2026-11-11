@@ -102,7 +102,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-teal-500/15 border border-teal-500/30 text-[11px] font-mono font-medium text-teal-300">
               <ShieldCheck className="w-3.5 h-3.5 text-teal-400" />
-              <span>STARKES KEMENKES 2027 / HK.02.02/D/47104/2027</span>
+              <span>STARKES KEMENKES 2024 / Kepdirjen Yankes 2024</span>
             </div>
             <div className="flex items-center gap-3.5 pt-1">
               <img
@@ -112,10 +112,10 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
               />
               <div>
                 <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-white">
-                  Kesiapan Akreditasi RSUD Bintan
+                  E-Sehati · Kesiapan Akreditasi RSUD Bintan
                 </h1>
                 <p className="text-teal-300 text-[11px] font-mono font-medium mt-0.5">
-                  RSUD Bintan SEHATI (Senyum, Empati, Hati Nurani, Aktual, Teknologi, Ibadah)
+                  E-Sehati (Senyum, Empati, Hati Nurani, Aktual, Teknologi, Ibadah)
                 </p>
               </div>
             </div>
@@ -230,7 +230,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
-            16 Pokja Akreditasi RSUD Bintan 2027
+            16 Pokja Akreditasi RSUD Bintan (STARKES 2024)
           </h3>
           <span className="text-[11px] text-slate-500 font-mono">
             Klik kartu Pokja untuk membuka lembar kerja instrumen

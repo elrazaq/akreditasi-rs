@@ -40,9 +40,12 @@ export const LoginForm: React.FC = () => {
               className="w-16 h-16 rounded-full object-contain bg-white/10 p-1 shadow-lg ring-2 ring-white/20"
             />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight text-white">RSUD BINTAN</h1>
-          <p className="text-[11px] uppercase tracking-wider text-teal-300/80 font-mono mt-1">
-            Sistem Informasi Dokumentasi Akreditasi Rumah Sakit
+          <h1 className="text-xl font-bold tracking-tight text-white">E-SEHATI</h1>
+          <p className="text-[11px] uppercase tracking-wider text-teal-300 font-mono mt-1">
+            Sistem Informasi Dokumentasi Akreditasi STARKES 2024
+          </p>
+          <p className="text-[10px] text-slate-300 mt-0.5 font-medium">
+            RSUD Bintan
           </p>
         </div>
 
@@ -109,7 +112,7 @@ export const LoginForm: React.FC = () => {
 
         {/* Footer */}
         <div className="bg-slate-50/80 px-6 py-3 text-center border-t border-slate-100 text-[11px] text-slate-500 font-mono">
-          STARKES Kemenkes RI | RSUD Bintan
+          E-SEHATI · STARKES Kemenkes RI 2024 | RSUD Bintan
         </div>
       </div>
     </div>

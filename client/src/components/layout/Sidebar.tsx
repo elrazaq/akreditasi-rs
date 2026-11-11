@@ -87,12 +87,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="w-10 h-10 rounded-full object-contain bg-white/10 p-0.5 shadow-md flex-shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <h1 className="text-xs font-semibold text-white tracking-wider uppercase truncate">
-                  RSUD BINTAN
+                <h1 className="text-xs font-bold text-white tracking-wider uppercase truncate">
+                  E-SEHATI
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="text-[10px] text-teal-400 font-mono tracking-wider uppercase truncate">
-                    AKREDITASI TAHUN 2027
+                    STARKES 2024 · RSUD BINTAN
                   </span>
                 </div>
               </div>

@@ -242,7 +242,7 @@ export const App: React.FC = () => {
             {loadingPokjas && pokjas.length === 0 ? (
               <div className="p-16 text-center bg-white rounded-3xl border border-slate-200/80 shadow-xs">
                 <Loader2 className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-3" />
-                <h3 className="text-sm font-semibold text-slate-800">Sinkronisasi Instrumen STARKES 2027...</h3>
+                <h3 className="text-sm font-semibold text-slate-800">Sinkronisasi Instrumen STARKES 2024...</h3>
                 <p className="text-xs text-slate-400 mt-1">Mengambil 16 Pokja Akreditasi RSUD Bintan</p>
               </div>
             ) : selectedEPId ? (
